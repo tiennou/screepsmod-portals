@@ -1,0 +1,5 @@
+# .prettierrc or .prettierrc.yaml
+trailingComma: "es5"
+semi: false
+singleQuote: true
+experimentalTernaries: true

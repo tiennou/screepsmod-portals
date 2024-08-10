@@ -14,9 +14,19 @@
     "author": "Etienne Samson",
     "license": "MIT",
     "devDependencies": {
+        "@types/lodash": "^3.10.9",
         "@types/node": "^10.17.60",
+        "@types/q": "^1.5.8",
         "eslint": "^9.8.0",
         "eslint-config-prettier": "^9.1.0",
-        "prettier": "^3.3.3"
+        "lodash": "^3.10.1",
+        "prettier": "^3.3.3",
+        "q": "^1.5.1",
+        "@screeps/backend": "^3.2.3",
+        "@screeps/common": "^2.15.5"
+    },
+    "peerDependencies": {
+        "@screeps/backend": ">=3.2.3",
+        "@screeps/common": ">=2.15.5"
     }
 }

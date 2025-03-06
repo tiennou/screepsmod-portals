@@ -1,4 +1,4 @@
-declare var _: import('lodash').LoDashStatic;
+// declare var _: import('lodash').LoDashStatic;
 declare var q: typeof import('q');
 
 type EventEmitter = import('events').EventEmitter;
@@ -43,7 +43,7 @@ interface ServerConfig {
 		};
 	};
 	engine: EventEmitter;
-	cli: {} & EventEmitter;
+	cli: CliSandbox & EventEmitter;
 	cronjobs: Record<string, Cronjob>;
 }
 
@@ -56,8 +56,8 @@ interface MapCli extends CommonCli {
 	openRoom: any;
 	closeRoom: any;
 	removeRoom: any;
-	updateRoomImageAssets: any;
-	updateTerrainData: any;
+	updateRoomImageAssets(roomName: RoomName): Promise<void>;
+	updateTerrainData(): Promise<void>;
 }
 
 interface CliSandbox {
@@ -117,5 +117,5 @@ declare module '@screeps/common' {
 	export function qSequence(collection: any, fn: any): any;
 	export function roomNameToXY(name: any): any[];
 	export function getRoomNameFromXY(x: any, y: any): string;
-	export function calcWorldSize(rooms: any): number;
+	export function calcWorldSize(rooms: Room[]): number;
 }

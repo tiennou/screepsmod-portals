@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import path from 'path';
 
 const serverModulesDir = path.resolve(process.cwd(), 'node_modules');
@@ -39,6 +40,41 @@ export function printPos(pos: RoomPosition) {
 	return JSON.stringify(pos);
 }
 
+export function isSamePos(pos1: RoomPosition, pos2: RoomPosition) {
+	return pos1.x === pos2.x && pos1.y === pos2.y && pos1.room === pos2.room;
+}
+
+export function isInRangeTo(pos1: RoomPosition, pos2: RoomPosition, range: number) {
+	return (
+		pos1.room === pos2.room &&
+		_.inRange(pos1.x, pos2.x - range, pos2.x + range + 1) &&
+		_.inRange(pos1.y, pos2.y - range, pos2.y + range + 1)
+	);
+}
+
+export enum RoomType {
+	NORMAL = 'normal',
+	CORE = 'core',
+	CROSSROADS = 'crossroads',
+}
+
+export function roomType(room: Room | RoomName) {
+	const name = _.isString(room) ? room : room.name;
+	if (isCore(name)) return RoomType.CORE;
+	else if (isCrossroads(name)) return RoomType.CROSSROADS;
+	// TODO: incomplete
+	return RoomType.NORMAL;
+}
+
+export function isCrossroads(room: Room | RoomName) {
+	const name = _.isString(room) ? room : room.name;
+	return !!name.match(/[EW]\d*0[NS]\d*0/);
+}
+
+export function isCore(room: Room | RoomName) {
+	const name = _.isString(room) ? room : room.name;
+	return !!name.match(/[EW]\d*5[NS]\d*5/);
+}
 
 /**
  *

@@ -4,13 +4,22 @@ import { isRoomName, isRoomPosition, printPos, serverRequire } from './utils';
 import { log } from 'console';
 import type commonMod from '@screeps/common';
 import type utilsMod from '@screeps/backend/lib/utils.js';
-import { PortalObject, RoomObject, WallObject } from './roomObjects';
+import { CreatePortalOpts, PortalOpts, PortalModSettings } from './types';
 
 const common = serverRequire('@screeps/common') as typeof commonMod;
 const utils = serverRequire('@screeps/backend/lib/utils.js') as typeof utilsMod;
 
-const DEFAULTS = {
-	maxPortalPairs: 10,
+const DEFAULTS: PortalModSettings = {
+	maxPairs: 10,
+	distance: [0, Infinity],
+	chance: {
+		decay: 0,
+		unstable: 0,
+		stray: 0,
+		oneWay: 0,
+	},
+	decayTimeRange: 0,
+	unstableDateRange: 0,
 };
 
 function checkPosition(pos: unknown): [roomName: RoomName, pos: RoomPosition | undefined] {
@@ -81,7 +90,7 @@ export default function (config: ServerConfig) {
 		createPortalPair: async function (
 			src: string | RoomPosition,
 			dst: string | RoomPosition,
-			_opts: Partial<CreatePortalOpts>
+			_opts: Partial<CreatePortalOpts> = {}
 		) {
 			const opts = _.defaults<CreatePortalOpts>({}, _opts, {
 				decayTime: undefined,
@@ -122,13 +131,13 @@ export default function (config: ServerConfig) {
 			if (!srcPos) {
 				const coords = await utils.findFreePos(srcRoom, opts.core ? 1 : 0);
 				srcPos = { ...coords, room: srcRoom };
-			} else if (!isValidPortalLocation(srcPos.room, srcPos.x, srcPos.y, opts.core)) {
+			} else if (!isValidPortalLocation(srcPos.room, srcPos.x, srcPos.y, opts.core!)) {
 				throw new Error(`source position ${srcPos} is invalid for a portal`);
 			}
 			if (!dstPos) {
 				const coords = await utils.findFreePos(dstRoom, opts.core ? 1 : 0);
 				dstPos = { ...coords, room: dstRoom };
-			} else if (!isValidPortalLocation(dstPos.room, dstPos.x, dstPos.y, opts.core)) {
+			} else if (!isValidPortalLocation(dstPos.room, dstPos.x, dstPos.y, opts.core!)) {
 				throw new Error(`destination position ${dstPos} is invalid for a portal`);
 			}
 
@@ -178,7 +187,7 @@ export default function (config: ServerConfig) {
 				} else if (opts.unstableDate < Date.now()) {
 					throw new Error(`unstableDate is in the past?`);
 				}
-				unstableDate = opts.unstableDate;
+				unstableDate = Math.round(opts.unstableDate);
 			} else if (opts?.decayTime) {
 				let decay: number;
 				if (_.isBoolean(opts.decayTime)) {
@@ -199,8 +208,8 @@ export default function (config: ServerConfig) {
 				type: 'portal',
 				destination: destPos,
 			};
-			if (unstableDate) portal.unstableDate = unstableDate;
-			else if (decayTime) portal.decayTime = decayTime;
+			if (unstableDate) portal.unstableDate = Math.round(unstableDate);
+			else if (decayTime) portal.decayTime = Math.round(decayTime);
 
 			log(`portal: ${JSON.stringify(portal)}`);
 			db['rooms.objects'].insert(portal);

@@ -17398,15 +17398,18 @@ async function refreshPortals(config) {
         }
         if (chance.unstable !== 0 && Math.random() <= chance.unstable) {
             if (_.isNumber(unstableDateRange)) {
-                opts.unstableDate = unstableDateRange;
+                opts.unstableDate = Date.now() + unstableDateRange;
             }
             else {
-                opts.unstableDate = _.random(...unstableDateRange);
+                opts.unstableDate = Date.now() + _.random(...unstableDateRange);
             }
         }
         else if (chance.decay !== 0 && Math.random() <= chance.decay) {
             if (_.isNumber(decayTimeRange)) {
                 opts.decayTime = decayTimeRange;
+            }
+            else if (decayTimeRange === undefined) {
+                opts.decayTime = true;
             }
             else {
                 opts.decayTime = _.random(...decayTimeRange);
@@ -17434,15 +17437,15 @@ const common = serverRequire('@screeps/common');
 const utils = serverRequire('@screeps/backend/lib/utils.js');
 const DEFAULTS = {
     maxPairs: 10,
-    distance: [0, Infinity],
+    distance: [15, Infinity],
     chance: {
         decay: 0,
-        unstable: 0,
+        unstable: 1,
         stray: 0,
         oneWay: 0,
     },
-    decayTimeRange: 0,
-    unstableDateRange: 0,
+    decayTimeRange: undefined,
+    unstableDateRange: 24 * 60 * 60 * 1000,
 };
 function checkPosition(pos) {
     let roomName;

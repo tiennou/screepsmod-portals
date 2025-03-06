@@ -11,15 +11,15 @@ const utils = serverRequire('@screeps/backend/lib/utils.js') as typeof utilsMod;
 
 const DEFAULTS: PortalModSettings = {
 	maxPairs: 10,
-	distance: [0, Infinity],
+	distance: [15, Infinity],
 	chance: {
 		decay: 0,
-		unstable: 0,
+		unstable: 1,
 		stray: 0,
 		oneWay: 0,
 	},
-	decayTimeRange: 0,
-	unstableDateRange: 0,
+	decayTimeRange: undefined,
+	unstableDateRange: 24 * 60 * 60 * 1000,
 };
 
 function checkPosition(pos: unknown): [roomName: RoomName, pos: RoomPosition | undefined] {
@@ -93,7 +93,7 @@ export default function (config: ServerConfig) {
 	}
 
 	config.portal = {
-		settings: Object.assign({}, DEFAULTS),
+		settings: Object.assign({}, DEFAULTS) as PortalModSettings,
 		loadSettings: function (data: Partial<PortalModSettings>) {
 			const settings: Partial<PortalModSettings> = {};
 			if ('maxPairs' in data && (typeof data.maxPairs !== 'number' || data.maxPairs < 0)) {

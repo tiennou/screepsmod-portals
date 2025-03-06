@@ -46,7 +46,29 @@ export interface PortalModSettings {
 		 */
 		oneWay: number;
 	};
-	decayTimeRange: number | [number, number];
+	/**
+	 * The decay value assigned to automatically generated portals.
+	 *
+	 * Those specify either a value to add, or a range from which a value will be randomly picked.
+	 * When the portal is generated, the current tick value will be added to that; hence they're
+	 * just the number of ticks a new portal should live for.
+	 *
+	 * Note that both unstableDate & decayTime cannot be set; portals are either unstable
+	 * until a specific date and switch to decay for PORTAL_DECAY ticks after that,
+	 * or are just decaying for a number of ticks before disappearing.
+	 */
+	decayTimeRange: number | [number, number] | undefined;
+	/**
+	 * The unstable interval assigned to automatically generated portals.
+	 *
+	 * Those specify either a value to add, or a range from which a value will be randomly picked.
+	 * When the portal is generated, the current date value will be added to that; hence they're
+	 * just a number of milliseconds a new portal should be stable for.
+	 *
+	 * Note that both unstableDate & decayTime cannot be set; portals are either unstable
+	 * until a specific date and switch to decay for PORTAL_DECAY ticks after that,
+	 * or are just decaying for a number of ticks before disappearing.
+	 */
 	unstableDateRange: number | [number, number];
 }
 

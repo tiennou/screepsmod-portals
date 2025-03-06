@@ -123,13 +123,15 @@ async function refreshPortals(config: ServerConfig) {
 		}
 		if (chance.unstable !== 0 && Math.random() <= chance.unstable) {
 			if (_.isNumber(unstableDateRange)) {
-				opts.unstableDate = unstableDateRange;
+				opts.unstableDate = Date.now() + unstableDateRange;
 			} else {
-				opts.unstableDate = _.random(...unstableDateRange);
+				opts.unstableDate = Date.now() + _.random(...unstableDateRange);
 			}
 		} else if (chance.decay !== 0 && Math.random() <= chance.decay) {
 			if (_.isNumber(decayTimeRange)) {
 				opts.decayTime = decayTimeRange;
+			} else if (decayTimeRange === undefined) {
+				opts.decayTime = true;
 			} else {
 				opts.decayTime = _.random(...decayTimeRange);
 			}

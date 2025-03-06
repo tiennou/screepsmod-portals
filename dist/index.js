@@ -1,10 +1,69 @@
 'use strict';
 
 var path = require('path');
+var console$1 = require('console');
 
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
 var path__default = /*#__PURE__*/_interopDefaultLegacy(path);
+
+const serverModulesDir = path__default["default"].resolve(process.cwd(), 'node_modules');
+function serverRequire(id) {
+    return require(require.resolve(id, { paths: [serverModulesDir] }));
+}
+function isRoomName(roomName) {
+    return typeof roomName === 'string' && /^[WE]\d+[NS]\d+$/.test(roomName);
+}
+function isRoomPosition(obj) {
+    if (typeof obj !== 'object' ||
+        !obj ||
+        !('room' in obj) ||
+        typeof obj.room !== 'string' ||
+        !isRoomName(obj.room) ||
+        !('x' in obj) ||
+        typeof obj.x !== 'number' ||
+        obj.x < 0 ||
+        obj.x > 49 ||
+        !('y' in obj) ||
+        typeof obj.y !== 'number' ||
+        obj.y < 0 ||
+        obj.y > 49) {
+        return false;
+    }
+    return true;
+}
+function printPos(pos) {
+    return JSON.stringify(pos);
+}
+
+const utils$1 = serverRequire('@screeps/backend/lib/utils.js');
+// const engineUtils = serverRequire('@screeps/engine/src/utils.js');
+function cli (config, sandbox) {
+    sandbox.map.createPortal = utils$1.withHelp([
+        "createPortal(srcRoom, dstRoom, [opts]) - Create a portal between two rooms (or positions). 'opts' is an object with the following optional properties:\n" +
+            '    * decayTime - number of ticks before the portal decays and disappears, or true if you want the default decaying duration\n' +
+            '    * unstableDate - a timestamp of when the portal should start decaying\n' +
+            '    * oneWay - create only one portal from source to dest\n' +
+            '    * core - create an 3x3 rings of portals around a constructed wall (the position is in the center)',
+        async function (src, dst, opts) {
+            config.portal.createPortalPair(src, dst, opts);
+        },
+    ]);
+    // Regenerate the help message to show our new commands
+    sandbox.map._help = utils$1.generateCliHelp('map.', sandbox.map);
+}
+
+function cronjobs (config) {
+    config.cronjobs.refreshPortals = [300, () => refreshPortals()];
+}
+async function refreshPortals(config) { }
+
+function backend (config) {
+    cronjobs(config);
+    config.cli.on('cliSandbox', function (sandbox) {
+        cli(config, sandbox);
+    });
+}
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -17215,47 +17274,49 @@ lodash.exports;
 } (lodash, lodash.exports));
 
 var lodashExports = lodash.exports;
-var _$1 = /*@__PURE__*/getDefaultExportFromCjs(lodashExports);
+var _ = /*@__PURE__*/getDefaultExportFromCjs(lodashExports);
 
-const serverModulesDir = path__default["default"].resolve(process.cwd(), 'node_modules');
-function serverRequire(id) {
-    return require(require.resolve(id, { paths: [serverModulesDir] }));
-}
-function isRoomName(roomName) {
-    return typeof roomName === 'string' && /^[WE]\d+[NS]\d+$/.test(roomName);
-}
-function isRoomPosition(obj) {
-    if (typeof obj !== 'object' ||
-        !obj ||
-        !('room' in obj) ||
-        typeof obj.room !== 'string' ||
-        !isRoomName(obj.room) ||
-        !('x' in obj) ||
-        typeof obj.x !== 'number' ||
-        obj.x < 0 ||
-        obj.x > 49 ||
-        !('y' in obj) ||
-        typeof obj.y !== 'number' ||
-        obj.y < 0 ||
-        obj.y > 49) {
-        return false;
-    }
-    return true;
-}
-
+const common = serverRequire('@screeps/common');
 const utils = serverRequire('@screeps/backend/lib/utils.js');
-const common$1 = serverRequire('@screeps/common');
-// const engineUtils = serverRequire('@screeps/engine/src/utils.js');
-function cli (config, sandbox) {
-    const storage = config.common.storage;
+const DEFAULTS = {
+    maxPortalPairs: 10,
+};
+function checkPosition(pos) {
+    let roomName;
+    let roomPos;
+    if (!isRoomPosition(pos)) {
+        if (!isRoomName(pos)) {
+            throw new Error(`Invalid position "${pos}"`);
+        }
+        roomName = pos;
+    }
+    else {
+        roomPos = pos;
+        roomName = roomPos.room;
+    }
+    return [roomName, roomPos];
+}
+function common$1 (config) {
     const C = config.common.constants;
+    const { env, db } = config.common.storage;
+    let settings;
+    try {
+        const configPath = path__default["default"].resolve(process.cwd(), 'portals.js');
+        console.log(`portals: looking for portals.js in ${configPath}`);
+        settings = require(configPath).settings;
+        console.log('portals: portals.js file found and loaded successfully.');
+    }
+    catch (e) {
+        console.log('portals: portals.js file not found, reverting to defaults.');
+        settings = DEFAULTS;
+    }
     async function isValidPortalLocation(roomName, x, y, core) {
-        const objects = (await storage.db['rooms.objects'].find({ room: roomName }));
-        const terrain = (await storage.db['rooms.terrain'].findOne({
+        const objects = (await db['rooms.objects'].find({ room: roomName }));
+        const terrain = (await db['rooms.terrain'].findOne({
             room: roomName,
         }));
         const checkCoord = (x, y) => {
-            if (!common$1.checkTerrain(terrain.terrain, x, y, C.TERRAIN_MASK_WALL)) {
+            if (!common.checkTerrain(terrain.terrain, x, y, C.TERRAIN_MASK_WALL)) {
                 return false;
             }
             if (objects.some((obj) => !C.OBSTACLE_OBJECT_TYPES.concat(['rampart', 'portal']).includes(obj.type))) {
@@ -17279,157 +17340,130 @@ function cli (config, sandbox) {
         }
         return true;
     }
-    // function pickRandomLocation(room: RoomName, terrainData: RoomTerrain, core = false): RoomPosition {
-    // 	const { terrain } = terrainData;
-    // 	console.log(`pickRandomLocation: ${room}, ${terrain}`);
-    // 	const decodedTerrain = decodeTerrain(terrain);
-    // 	/** @type {RoomPosition[]} */
-    // 	const positions = [];
-    // 	for (let x = 0; x <= 49; x++) {
-    // 		for (let y = 0; y <= 49; y++) {
-    // 			try {
-    // 				if (isValidPortalLocation(decodedTerrain, {}, x, y, core)) {
-    // 					positions.push({ room, x, y });
-    // 				}
-    // 			} catch (e) {
-    // 				console.error(`Failed to check portal location ${room}, ${x}, ${y}: ${e}`);
-    // 			}
-    // 		}
-    // 	}
-    // 	return _.sample(positions);
-    // }
-    sandbox.map.createPortal = utils.withHelp([
-        "createPortal(srcRoom, dstRoom, [opts]) - Create a portal between two rooms (or positions). 'opts' is an object with the following optional properties:\n" +
-            '    * decayTime - number of ticks until the portal decays and disappears\n' +
-            '    * unstableDate - a timestamp of when the portal should start decaying\n' +
-            '    * oneWay - create only one portal from source to dest\n' +
-            '    * core - create an 3x3 rings of portals around a constructed wall (the position is in the center)',
-        async function (_srcRoom, _dstRoom, _opts) {
-            const opts = _$1.defaults({}, _opts, {
+    config.portal = {
+        settings,
+        createPortalPair: async function (src, dst, _opts) {
+            const opts = _.defaults({}, _opts, {
                 decayTime: undefined,
                 unstableDate: undefined,
                 oneWay: false,
                 core: false,
             });
-            let makePortalOpts = {};
+            let portalOpts = {};
             if (opts.decayTime && opts.unstableDate) {
                 throw new Error("can't specify both decayTime and unstableDate");
             }
             else if (opts.decayTime) {
-                makePortalOpts.decayTime = opts.decayTime;
+                portalOpts.decayTime = opts.decayTime;
             }
             else if (opts.unstableDate) {
-                makePortalOpts.unstableDate = opts.unstableDate;
+                portalOpts.unstableDate = opts.unstableDate;
             }
-            let srcRoom;
-            let srcPos;
-            if (!isRoomPosition(_srcRoom)) {
-                if (!isRoomName(_srcRoom)) {
-                    throw new Error(`Invalid source room "${_srcRoom}"`);
-                }
-                srcRoom = _srcRoom;
-            }
-            else {
-                srcPos = _srcRoom;
-                srcRoom = srcPos.room;
-            }
-            let dstRoom;
-            let dstPos;
-            if (!isRoomPosition(_dstRoom)) {
-                if (!isRoomName(_dstRoom)) {
-                    throw new Error(`Invalid destination room "${_dstRoom}"`);
-                }
-                dstRoom = _dstRoom;
-            }
-            else {
-                dstPos = _dstRoom;
-                dstRoom = dstPos.room;
-            }
-            const srcTerrain = (await storage.db['rooms.terrain'].findOne({
-                room: _srcRoom,
-            }));
-            const dstTerrain = (await storage.db['rooms.terrain'].findOne({
-                room: _dstRoom,
+            let [srcRoom, srcPos] = checkPosition(src);
+            let [dstRoom, dstPos] = checkPosition(dst);
+            console$1.log(`creating portal from ${srcPos ? printPos(srcPos) : srcRoom} to ${dstPos ? printPos(dstPos) : dstRoom}: opts: ${JSON.stringify(portalOpts)}`);
+            const srcTerrain = (await db['rooms.terrain'].findOne({
+                room: src,
             }));
             if (!srcTerrain) {
                 throw new Error('Source room does not exist');
             }
+            const dstTerrain = (await db['rooms.terrain'].findOne({
+                room: dst,
+            }));
             if (!dstTerrain) {
                 throw new Error('Destination room does not exist');
             }
-            utils.findFreePos(srcRoom, opts.core ? 1 : 0);
             if (!srcPos) {
-                srcPos = await utils.findFreePos(srcRoom, opts.core ? 1 : 0);
+                const coords = await utils.findFreePos(srcRoom, opts.core ? 1 : 0);
+                srcPos = { ...coords, room: srcRoom };
             }
             else if (!isValidPortalLocation(srcPos.room, srcPos.x, srcPos.y, opts.core)) {
                 throw new Error(`source position ${srcPos} is invalid for a portal`);
             }
             if (!dstPos) {
-                dstPos = await utils.findFreePos(dstRoom, opts.core ? 1 : 0);
+                const coords = await utils.findFreePos(dstRoom, opts.core ? 1 : 0);
+                dstPos = { ...coords, room: dstRoom };
             }
             else if (!isValidPortalLocation(dstPos.room, dstPos.x, dstPos.y, opts.core)) {
                 throw new Error(`destination position ${dstPos} is invalid for a portal`);
             }
-            config.portal.makePortal(srcPos, dstPos, makePortalOpts);
+            if (opts.core) {
+                for (const x of _.range(-1, 2)) {
+                    for (const y of _.range(-1, 2)) {
+                        const coreSrc = { x: srcPos.x + x, y: srcPos.y + y, room: srcPos.room };
+                        const coreDst = { x: dstPos.x + x, y: dstPos.y + y, room: dstPos.room };
+                        if (x === 0 && y === 0) {
+                            // Make an eternal center wall; the portal decay handles removing those
+                            let wall = { ...coreSrc, type: 'constructedWall' };
+                            await db['rooms.objects'].insert(wall);
+                            if (!opts.oneWay) {
+                                wall = { ...coreDst, type: 'constructedWall' };
+                                await db['rooms.objects'].insert(wall);
+                            }
+                        }
+                        else {
+                            this.makePortal(coreSrc, coreDst, portalOpts);
+                            if (!opts.oneWay) {
+                                this.makePortal(coreDst, coreSrc, portalOpts);
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                this.makePortal(srcPos, dstPos, portalOpts);
+                if (!opts.oneWay) {
+                    this.makePortal(dstPos, srcPos, portalOpts);
+                }
+            }
         },
-    ]);
-    // Regenerate the help message to show our new commands
-    sandbox.map._help = utils.generateCliHelp('map.', sandbox.map);
-}
-
-function cronjobs (config) {
-    config.cronjobs.refreshPortals = [300, () => refreshPortals()];
-}
-async function refreshPortals(config) { }
-
-function backend (config) {
-    cronjobs(config);
-    config.cli.on('cliSandbox', function (sandbox) {
-        cli(config, sandbox);
-    });
-}
-
-const DEFAULTS = {
-    maxPortalPairs: 10,
-};
-function common (config) {
-    const C = config.common.constants;
-    const storage = config.common.storage;
-    let settings;
-    try {
-        const configPath = path__default["default"].resolve(process.cwd(), 'portals.js');
-        console.log(`portals: looking for portals.js in ${configPath}`);
-        settings = require(configPath).settings;
-        console.log('portals: portals.js file found and loaded successfully.');
-    }
-    catch (e) {
-        console.log('portals: portals.js file not found, reverting to defaults.');
-        settings = DEFAULTS;
-    }
-    config.portal = {
-        settings,
-        makePortal: function (pos, destPos, opts) {
-            var _a;
+        makePortal: async function (pos, destPos, opts) {
+            console$1.log(`makePortal: ${printPos(pos)}, ${printPos(destPos)}, opts: ${JSON.stringify(opts)}`);
             if (!isRoomPosition(pos) || !isRoomPosition(destPos)) {
                 throw new Error('Invalid portal positions!');
             }
             let unstableDate = undefined;
             let decayTime = undefined;
-            if (_.isFinite(opts.unstableDate) && opts.unstableDate > 0) {
+            if ((opts === null || opts === void 0 ? void 0 : opts.decayTime) && (opts === null || opts === void 0 ? void 0 : opts.unstableDate)) {
+                throw new Error("can't specify both decayTime and unstableDate");
+            }
+            else if (opts === null || opts === void 0 ? void 0 : opts.unstableDate) {
+                if (!_.isFinite(opts.unstableDate) || opts.unstableDate <= 0) {
+                    throw new Error(`unstableDate must be a positive integer`);
+                }
+                else if (opts.unstableDate < Date.now()) {
+                    throw new Error(`unstableDate is in the past?`);
+                }
                 unstableDate = opts.unstableDate;
             }
-            else {
-                decayTime = (_a = opts.decayTime) !== null && _a !== void 0 ? _a : C.PORTAL_DECAY;
+            else if (opts === null || opts === void 0 ? void 0 : opts.decayTime) {
+                let decay;
+                if (_.isBoolean(opts.decayTime)) {
+                    decay = C.PORTAL_DECAY;
+                }
+                else if (_.isFinite(opts.decayTime) && opts.decayTime > 0) {
+                    decay = opts.decayTime;
+                }
+                else {
+                    throw new Error(`decayTime must be a positive integer or a boolean`);
+                }
+                const tick = await common.getGametime();
+                decayTime = tick + decay;
             }
-            storage.db['rooms.objects'].insert({
+            const portal = {
                 room: pos.room,
                 x: pos.x,
                 y: pos.y,
                 type: 'portal',
                 destination: destPos,
-                decayTime,
-                unstableTime: unstableDate,
-            });
+            };
+            if (unstableDate)
+                portal.unstableDate = unstableDate;
+            else if (decayTime)
+                portal.decayTime = decayTime;
+            console$1.log(`portal: ${JSON.stringify(portal)}`);
+            db['rooms.objects'].insert(portal);
         },
     };
 }
@@ -17448,7 +17482,7 @@ function engine(config) {
 }
 
 function index (config) {
-    common(config);
+    common$1(config);
     if (config.backend)
         backend(config);
     if (config.engine)

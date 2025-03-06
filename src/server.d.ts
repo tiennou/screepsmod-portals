@@ -22,12 +22,6 @@ interface RoomTerrain {
 	terrain: string;
 }
 
-interface RoomObject {
-	x: number;
-	y: number;
-	type: string;
-}
-
 type Cronjob = [number, () => void];
 
 interface ServerConfig {
@@ -42,6 +36,7 @@ interface ServerConfig {
 		storage: {
 			db: any;
 			env: {
+				get(key: string): Promise<string>;
 				keys: Record<string, string>;
 			};
 			pubsub: any;
@@ -117,7 +112,7 @@ declare module '@screeps/common' {
 		type: string;
 	}[];
 	export function checkTerrain(terrain: Uint8Array | string, x: number, y: number, mask: any): boolean;
-	export function getGametime(): any;
+	export function getGametime(): Promise<number>;
 	export function getDiff(oldData: any, newData: any): {};
 	export function qSequence(collection: any, fn: any): any;
 	export function roomNameToXY(name: any): any[];

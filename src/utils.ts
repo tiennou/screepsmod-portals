@@ -6,7 +6,11 @@ export function serverRequire(id: string) {
 	return require(require.resolve(id, { paths: [serverModulesDir] }));
 }
 
-export function isRoomName(roomName: string): roomName is RoomName {
+export function log(...msg: any[]) {
+	console.log(`[portals]`, ...msg);
+}
+
+export function isRoomName(roomName: unknown): roomName is RoomName {
 	return typeof roomName === 'string' && /^[WE]\d+[NS]\d+$/.test(roomName);
 }
 
@@ -31,7 +35,10 @@ export function isRoomPosition(obj: unknown): obj is RoomPosition {
 	return true;
 }
 
-export function prettyPrintTerrain(terrain: RoomTerrain) {}
+export function printPos(pos: RoomPosition) {
+	return JSON.stringify(pos);
+}
+
 
 /**
  *

@@ -1,10 +1,17 @@
 type CreatePortalOpts = import('./types').CreatePortalOpts;
 
-type MakePortalOpts = { unstableDate?: number; decayTime?: number };
+type PortalOpts =
+	| { unstableDate?: number; decayTime?: undefined }
+	| { unstableDate?: undefined; decayTime?: boolean | number };
 
 interface ServerConfig {
 	portal: {
-		makePortal(pos: RoomPosition, destPos: RoomPosition, opts: MakePortalOpts): void;
+		createPortalPair(
+			src: string | RoomPosition,
+			dst: string | RoomPosition,
+			_opts: Partial<CreatePortalOpts>
+		): void;
+		makePortal(pos: RoomPosition, destPos: RoomPosition, opts?: PortalOpts): void;
 		settings: Record<string, any>;
 	};
 }

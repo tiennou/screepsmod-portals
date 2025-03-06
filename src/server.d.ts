@@ -45,6 +45,55 @@ interface ServerConfig {
 	engine: EventEmitter;
 	cli: CliSandbox & EventEmitter;
 	cronjobs: Record<string, Cronjob>;
+	utils?: ConfigAdminUtils & EventEmitter;
+}
+
+interface ConfigAdminUtils {
+	/**
+	 * The `serverConfig` block from config.yml
+	 */
+	config: Record<string, any>;
+	addNPCTerminals(interval?: number): Promise<string>;
+	removeNPCTerminals(): Promise<string>;
+	removeBots(): Promise<string>;
+	setSocketUpdateRate(value: number): Promise<string>;
+	getSocketUpdateRate(): Promise<string>;
+	setShardName(name: string): Promise<string>;
+	reloadConfig(): Promise<string>;
+}
+interface ConfigAdminUtils {
+	// autoSpawn
+	spawnBot(botAIName: string, room: RoomName, opts?: { auto: boolean }): Promise<string>;
+}
+interface ConfigAdminUtils {
+	// GCL-to-CPU
+	getCPULimit(user: string): Promise<string>;
+	setCPULimit(user: string): Promise<string>;
+	resetCPULimit(user: string): Promise<string>;
+	enableGCLToCPU(maxCPU: number, baseCPU: number, stepCPU: number): Promise<string>;
+	disableGCLToCPU(): Promise<string>;
+}
+interface ConfigAdminUtils {
+	// importMap
+	importMap(urlOrMapId: string): Promise<string>;
+	importMapFile(filePath: string): Promise<string>;
+}
+interface ConfigAdminUtils {
+	// stats
+	getStats(): Promise<any>;
+}
+interface ConfigAdminUtils {
+	// warpath
+	warpath: {
+		getCurrentBattles(gameTime: number, interval?: number, start?: number): Promise<string>;
+	};
+}
+
+interface ConfigAdminUtils {
+	// whitelist
+	getWhitelist(): Promise<string>;
+	addWhitelistUser(user: string): Promise<string>;
+	removeWhitelistUser(user: string): Promise<string>;
 }
 
 interface CommonCli {

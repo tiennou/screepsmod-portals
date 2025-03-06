@@ -17419,7 +17419,12 @@ async function refreshPortals(config) {
 }
 
 function backend (config) {
+    var _a;
     cronjobs(config);
+    (_a = config.utils) === null || _a === void 0 ? void 0 : _a.on('config:update:portals', (data) => {
+        log('portals config reload!', data);
+        config.portal.loadSettings(data);
+    });
     config.cli.on('cliSandbox', function (sandbox) {
         cli(config, sandbox);
     });
@@ -17457,17 +17462,6 @@ function checkPosition(pos) {
 function common$1 (config) {
     const C = config.common.constants;
     const { env, db } = config.common.storage;
-    let settings;
-    try {
-        const configPath = path__default["default"].resolve(process.cwd(), 'portals.js');
-        console.log(`portals: looking for portals.js in ${configPath}`);
-        settings = require(configPath).settings;
-        console.log('portals: portals.js file found and loaded successfully.');
-    }
-    catch (e) {
-        console.log('portals: portals.js file not found, reverting to defaults.');
-        settings = DEFAULTS;
-    }
     async function isValidPortalLocation(roomName, x, y, core) {
         const objects = (await db['rooms.objects'].find({ room: roomName }));
         const terrain = (await db['rooms.terrain'].findOne({
@@ -17498,8 +17492,78 @@ function common$1 (config) {
         }
         return true;
     }
+    function isRange(r, minValue, maxValue) {
+        return (Array.isArray(r) &&
+            r.length === 2 &&
+            r.every((n) => typeof n === 'number' &&
+                (minValue === undefined || n >= 0) &&
+                (maxValue === undefined || n <= maxValue)) &&
+            r[0] < r[1]);
+    }
+    function inRange(n, min, max) {
+        return n >= min && n <= max;
+    }
     config.portal = {
-        settings,
+        settings: Object.assign({}, DEFAULTS),
+        loadSettings: function (data) {
+            var _a, _b, _c, _d;
+            const settings = {};
+            if ('maxPairs' in data && (typeof data.maxPairs !== 'number' || data.maxPairs < 0)) {
+                console$1.log(`invalid value for 'maxPairs', using default`);
+            }
+            else {
+                settings.maxPairs = data.maxPairs;
+            }
+            if (data.distance && !isRange(data.distance, 0)) {
+                console$1.log(`invalid value for 'distance', using default`);
+            }
+            else {
+                settings.distance = data.distance;
+            }
+            if (data.decayTimeRange && !_.isFinite(data.decayTimeRange) && !isRange(data.decayTimeRange, 0)) {
+                console$1.log(`invalid value for 'decayTimeRange', using default`);
+            }
+            else {
+                settings.decayTimeRange = data.decayTimeRange;
+            }
+            if (data.unstableDateRange && !_.isFinite(data.unstableDateRange) && !isRange(data.unstableDateRange, 0)) {
+                console$1.log(`invalid value for 'unstableDateRange', using default`);
+            }
+            else {
+                settings.unstableDateRange = data.unstableDateRange;
+            }
+            if (data.chance && !_.isPlainObject(data.chance)) {
+                console$1.log(`invalid value for 'chance', using default`);
+            }
+            else if (data.chance) {
+                if (!inRange(data.chance.decay, 0, 1)) {
+                    console$1.log(`invalid value for 'chance.decay', using default`);
+                }
+                else {
+                    ((_a = settings.chance) !== null && _a !== void 0 ? _a : (settings.chance = {})).decay = data.chance.decay;
+                }
+                if (!inRange(data.chance.unstable, 0, 1)) {
+                    console$1.log(`invalid value for 'chance.stray', using default`);
+                }
+                else {
+                    ((_b = settings.chance) !== null && _b !== void 0 ? _b : (settings.chance = {})).unstable = data.chance.unstable;
+                }
+                if (!inRange(data.chance.oneWay, 0, 1)) {
+                    console$1.log(`invalid value for 'chance.oneWay', using default`);
+                }
+                else {
+                    ((_c = settings.chance) !== null && _c !== void 0 ? _c : (settings.chance = {})).oneWay = data.chance.oneWay;
+                }
+                if (!inRange(data.chance.stray, 0, 1)) {
+                    console$1.log(`invalid value for 'chance.stray', using default`);
+                }
+                else {
+                    ((_d = settings.chance) !== null && _d !== void 0 ? _d : (settings.chance = {})).stray = data.chance.stray;
+                }
+            }
+            this.settings = _.defaultsDeep({}, settings, DEFAULTS);
+            console$1.log(`settings: ${JSON.stringify(this.settings, undefined, ' ')}`);
+        },
         createPortalPair: async function (src, dst, _opts = {}) {
             const opts = _.defaults({}, _opts, {
                 decayTime: undefined,
@@ -17626,25 +17690,10 @@ function common$1 (config) {
     };
 }
 
-function engine(config) {
-    // let storage = config.common.storage
-    config.engine.on('playerSandbox', function (sandbox, userID) {
-        sandbox.example = function () {
-            sandbox.console.log(`Hello from example mod!`);
-        };
-    });
-    config.engine.on('init', function (processType) {
-        // processType will be 'runner','processor', or 'main'
-        // Useful for detecting what module you are in
-    });
-}
-
 function index (config) {
     common$1(config);
     if (config.backend)
         backend(config);
-    if (config.engine)
-        engine(config);
 }
 
 module.exports = index;

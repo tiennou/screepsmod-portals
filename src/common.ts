@@ -41,17 +41,6 @@ export default function (config: ServerConfig) {
 	const C = config.common.constants;
 	const { env, db } = config.common.storage;
 
-	let settings;
-	try {
-		const configPath = path.resolve(process.cwd(), 'portals.js');
-		console.log(`portals: looking for portals.js in ${configPath}`);
-		settings = require(configPath).settings;
-		console.log('portals: portals.js file found and loaded successfully.');
-	} catch (e) {
-		console.log('portals: portals.js file not found, reverting to defaults.');
-		settings = DEFAULTS;
-	}
-
 	async function isValidPortalLocation(roomName: RoomName, x: number, y: number, core: boolean) {
 		const objects = (await db['rooms.objects'].find({ room: roomName })) as RoomObject[];
 		const terrain = (await db['rooms.terrain'].findOne({
@@ -85,8 +74,75 @@ export default function (config: ServerConfig) {
 		return true;
 	}
 
+	function isRange(r: unknown, minValue?: number, maxValue?: number) {
+		return (
+			Array.isArray(r) &&
+			r.length === 2 &&
+			r.every(
+				(n) =>
+					typeof n === 'number' &&
+					(minValue === undefined || n >= 0) &&
+					(maxValue === undefined || n <= maxValue)
+			) &&
+			r[0] < r[1]
+		);
+	}
+
+	function inRange(n: number, min: number, max: number) {
+		return n >= min && n <= max;
+	}
+
 	config.portal = {
-		settings,
+		settings: Object.assign({}, DEFAULTS),
+		loadSettings: function (data: Partial<PortalModSettings>) {
+			const settings: Partial<PortalModSettings> = {};
+			if ('maxPairs' in data && (typeof data.maxPairs !== 'number' || data.maxPairs < 0)) {
+				log(`invalid value for 'maxPairs', using default`);
+			} else {
+				settings.maxPairs = data.maxPairs;
+			}
+			if (data.distance && !isRange(data.distance, 0)) {
+				log(`invalid value for 'distance', using default`);
+			} else {
+				settings.distance = data.distance;
+			}
+			if (data.decayTimeRange && !_.isFinite(data.decayTimeRange) && !isRange(data.decayTimeRange, 0)) {
+				log(`invalid value for 'decayTimeRange', using default`);
+			} else {
+				settings.decayTimeRange = data.decayTimeRange;
+			}
+			if (data.unstableDateRange && !_.isFinite(data.unstableDateRange) && !isRange(data.unstableDateRange, 0)) {
+				log(`invalid value for 'unstableDateRange', using default`);
+			} else {
+				settings.unstableDateRange = data.unstableDateRange;
+			}
+			if (data.chance && !_.isPlainObject(data.chance)) {
+				log(`invalid value for 'chance', using default`);
+			} else if (data.chance) {
+				if (!inRange(data.chance.decay, 0, 1)) {
+					log(`invalid value for 'chance.decay', using default`);
+				} else {
+					(settings.chance ??= {} as PortalModSettings['chance']).decay = data.chance.decay;
+				}
+				if (!inRange(data.chance.unstable, 0, 1)) {
+					log(`invalid value for 'chance.stray', using default`);
+				} else {
+					(settings.chance ??= {} as PortalModSettings['chance']).unstable = data.chance.unstable;
+				}
+				if (!inRange(data.chance.oneWay, 0, 1)) {
+					log(`invalid value for 'chance.oneWay', using default`);
+				} else {
+					(settings.chance ??= {} as PortalModSettings['chance']).oneWay = data.chance.oneWay;
+				}
+				if (!inRange(data.chance.stray, 0, 1)) {
+					log(`invalid value for 'chance.stray', using default`);
+				} else {
+					(settings.chance ??= {} as PortalModSettings['chance']).stray = data.chance.stray;
+				}
+			}
+			this.settings = _.defaultsDeep({}, settings, DEFAULTS);
+			log(`settings: ${JSON.stringify(this.settings, undefined, ' ')}`);
+		},
 		createPortalPair: async function (
 			src: string | RoomPosition,
 			dst: string | RoomPosition,

@@ -53,13 +53,14 @@ export interface PortalModSettings {
 declare global {
 	interface ServerConfig {
 		portal: {
+			settings: PortalModSettings;
+			loadSettings(data: any): void;
 			createPortalPair(
 				src: string | RoomPosition,
 				dst: string | RoomPosition,
 				_opts?: Partial<CreatePortalOpts>
 			): void;
 			makePortal(pos: RoomPosition, destPos: RoomPosition, opts?: PortalOpts): void;
-			settings: PortalModSettings;
 		};
 	}
 

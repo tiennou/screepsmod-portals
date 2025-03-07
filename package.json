@@ -6,7 +6,6 @@
     "scripts": {
         "build": "rollup -c",
         "dev": "rollup -cw",
-        "prepare": "npm run build",
         "format": "prettier --write src/**/*.ts",
         "2npm": "publish"
     },
